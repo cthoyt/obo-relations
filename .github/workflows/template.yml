@@ -1,0 +1,49 @@
+name: Merge template
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'src/templates/new_relations.tsv'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'src/templates/new_relations.tsv'
+  workflow_dispatch:
+
+jobs:
+#  reset_branch:
+#    steps:
+#
+#      - name: Reset RO edit
+#        env:
+#          DEFAULT_BRANCH: master
+#        run: |
+#          git checkout origin/master -- src/ontology/ro-edit.owl
+  merge_template:
+    runs-on: ubuntu-latest
+    container: obolibrary/odkfull:v1.2.26
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+          fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+      - name: Git status
+        run: |
+          git status
+          git branch -r
+      - name: Run merge templates
+        env:
+          DEFAULT_BRANCH: master
+        run: cd src/ontology && make ROBOT_ENV='ROBOT_JAVA_ARGS=-Xmx6G' merge_template
+      - name: Commit files
+        run: |
+          git add src/ontology/ro-edit.owl
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -m "Update ro-edit.owl"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
